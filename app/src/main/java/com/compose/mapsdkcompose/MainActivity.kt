@@ -21,31 +21,29 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.compose.mapsdkcompose.api.RetrofitClient
 import com.compose.mapsdkcompose.ui.theme.MapSdkComposeTheme
-import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
-import com.google.android.libraries.places.api.model.Place
-import com.google.android.libraries.places.api.net.FetchPlaceRequest
 import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.MapProperties
-import com.google.maps.android.compose.MapType
-import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.launch
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (!Places.isInitialized()) {
-            Places.initialize(applicationContext, "YOUR_GOOGLE_PLACES_API_KEY")
+            Places.initialize(applicationContext, "GOOGLE_MAPS_API_KEY")
         }
 
         enableEdgeToEdge()
@@ -62,23 +60,35 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MapScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val singapore = LatLng(1.35, 103.87)  // Default location
-
-    // State variables
     val searchQuery = remember { mutableStateOf("") }
-    val suggestions = remember { mutableStateOf(emptyList<Pair<String, LatLng>>()) }
-    val selectedLocation = remember { mutableStateOf<LatLng?>(null) }
+    val suggestions = remember { mutableStateOf<List<Pair<String, LatLng>>>(emptyList()) }
+    val selectedPosition = remember { mutableStateOf(LatLng(33.7772544, -84.5545472)) } // Initial position
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(singapore, 10f)
+        position = CameraPosition.fromLatLngZoom(selectedPosition.value, 15f)
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        // Search Box
+    val route = remember { mutableStateOf<List<LatLng>>(emptyList()) }
+
+    // Call to fetch places when search query changes
+    SearchPlaces(searchQuery.value) { newSuggestions ->
+        suggestions.value = newSuggestions
+    }
+
+    // Fetch route when the destination is selected
+    LaunchedEffect(selectedPosition.value) {
+        // Fetch directions from origin to selected position
+        route.value = fetchRoute(
+            "YOUR_GOOGLE_MAPS_API_KEY", // Use your API Key
+            selectedPosition.value,
+            LatLng(33.7488, -84.3880) // Set your destination here
+        )
+    }
+
+    Column(modifier = modifier) {
+        // Search Bar
         OutlinedTextField(
             value = searchQuery.value,
-            onValueChange = { query ->
-                searchQuery.value = query
-            },
+            onValueChange = { query -> searchQuery.value = query },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp),
@@ -86,84 +96,42 @@ fun MapScreen(modifier: Modifier = Modifier) {
             singleLine = true
         )
 
-        // Launch search effect when query changes
-        LaunchedEffect(searchQuery.value) {
-            if (searchQuery.value.isNotBlank()) {
-                val placesClient = Places.createClient(context)
-
-                try {
-                    // Get place predictions
-                    val predictionsRequest = FindAutocompletePredictionsRequest.builder()
-                        .setQuery(searchQuery.value)
-                        .build()
-
-                    val predictionsResponse = placesClient.findAutocompletePredictions(predictionsRequest).await()
-
-                    // For each prediction, fetch the place details
-                    val newSuggestions = predictionsResponse.autocompletePredictions.map { prediction ->
-                        val placeFields = listOf(Place.Field.NAME, Place.Field.LAT_LNG)
-                        val fetchPlaceRequest = FetchPlaceRequest.builder(prediction.placeId, placeFields).build()
-
-                        try {
-                            val placeResponse = placesClient.fetchPlace(fetchPlaceRequest).await()
-                            val place = placeResponse.place
-                            Pair(
-                                prediction.getPrimaryText(null).toString(),
-                                place.latLng ?: singapore // Fallback to default location
-                            )
-                        } catch (e: ApiException) {
-                            Log.e("Places", "Error fetching place details: ${e.statusCode}, ${e.message}", e)
-                            null
-                        }
-                    }.filterNotNull()
-
-                    suggestions.value = newSuggestions
-                } catch (e: ApiException) {
-                    Log.e("API_ERROR", "Error fetching predictions: ${e.statusCode}, ${e.message}", e)
-                    suggestions.value = emptyList()
-                }
-            } else {
-                suggestions.value = emptyList()
-            }
-        }
-
-        // Suggestions List
+        // Display Suggestions
         LazyColumn {
             items(suggestions.value) { suggestion ->
                 Text(
                     text = suggestion.first,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            selectedLocation.value = suggestion.second
-                            cameraPositionState.position = CameraPosition.fromLatLngZoom(suggestion.second, 15f)
-                            searchQuery.value = suggestion.first
-                            suggestions.value = emptyList()
-                        }
                         .padding(8.dp)
+                        .clickable {
+                            // Update camera position and selected marker
+                            selectedPosition.value = suggestion.second
+                            cameraPositionState.position = CameraPosition.fromLatLngZoom(selectedPosition.value, 15f)
+                        }
                 )
             }
         }
 
-        // Map
+        // Google Map
         Box(modifier = Modifier.weight(1f)) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                properties = MapProperties(
-                    isMyLocationEnabled = false,
-                    mapType = MapType.NORMAL
-                ),
-                uiSettings = MapUiSettings(
-                    zoomControlsEnabled = true,
-                    myLocationButtonEnabled = false
-                )
+                cameraPositionState = cameraPositionState
             ) {
-                // Show marker for selected location
-                selectedLocation.value?.let { location ->
-                    Marker(
-                        state = MarkerState(position = location),
-                        title = searchQuery.value
+                // Marker for selected position
+                Marker(
+                    state = MarkerState(position = selectedPosition.value),
+                    title = "Selected Location",
+                    snippet = "Marker at selected location"
+                )
+
+                // Draw the route polyline if available
+                if (route.value.isNotEmpty()) {
+                    Polyline(
+                        points = route.value,
+                        color = Color.Blue,
+                        width = 5f
                     )
                 }
             }
@@ -198,5 +166,58 @@ fun SearchPlaces(
                 Log.e("Places", "Error finding places", exception)
                 onSuggestionsFetched(emptyList())
             }
+    }
+}
+
+fun decodePolyline(encoded: String): List<LatLng> {
+    val poly = ArrayList<LatLng>()
+    var index = 0
+    val len = encoded.length
+    var lat = 0
+    var lng = 0
+
+    while (index < len) {
+        var b: Int
+        var shift = 0
+        var result = 0
+        do {
+            b = encoded[index++].code - 63
+            result = result or (b and 0x1f shl shift)
+            shift += 5
+        } while (b >= 0x20)
+        val dLat = if (result and 1 != 0) (result shr 1).inv() else result shr 1
+        lat += dLat
+
+        shift = 0
+        result = 0
+        do {
+            b = encoded[index++].code - 63
+            result = result or (b and 0x1f shl shift)
+            shift += 5
+        } while (b >= 0x20)
+        val dLng = if (result and 1 != 0) (result shr 1).inv() else result shr 1
+        lng += dLng
+
+        poly.add(LatLng(lat / 1E5, lng / 1E5))
+    }
+    return poly
+}
+
+suspend fun fetchRoute(apiKey: String, origin: LatLng, destination: LatLng): List<LatLng> {
+    return try {
+        val response = RetrofitClient.service.getDirections(
+            "${origin.latitude},${origin.longitude}",
+            "${destination.latitude},${destination.longitude}",
+            apiKey
+        )
+        val polyline = response.routes?.firstOrNull()?.overviewPolyline?.points
+        if (polyline != null) {
+            decodePolyline(polyline)
+        } else {
+            emptyList()
+        }
+    } catch (e: Exception) {
+        Log.e("DirectionsScreen", "Error fetching directions: $e")
+        emptyList()
     }
 }
