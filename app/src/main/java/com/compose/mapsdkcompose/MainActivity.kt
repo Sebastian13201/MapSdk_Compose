@@ -5,12 +5,14 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -53,10 +55,16 @@ class MainActivity : ComponentActivity() {
 fun MapScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val searchQuery = remember { mutableStateOf("") }
-    val startPosition = LatLng(33.7772544, -84.5545472)
+    val suggestions = remember { mutableStateOf<List<Pair<String, LatLng>>>(emptyList()) }
+    val selectedPosition = remember { mutableStateOf(LatLng(33.7772544, -84.5545472)) } // Initial position
 
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(startPosition, 15f)
+        position = CameraPosition.fromLatLngZoom(selectedPosition.value, 15f)
+    }
+
+    // Call to fetch places when search query changes
+    SearchPlaces(searchQuery.value) { newSuggestions ->
+        suggestions.value = newSuggestions
     }
 
     Column(modifier = modifier) {
@@ -71,6 +79,22 @@ fun MapScreen(modifier: Modifier = Modifier) {
             singleLine = true
         )
 
+        // Display Suggestions
+        LazyColumn {
+            items(suggestions.value) { suggestion ->
+                Text(
+                    text = suggestion.first,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                        .clickable {
+                            // Update camera position and selected marker
+                            selectedPosition.value = suggestion.second
+                            cameraPositionState.position = CameraPosition.fromLatLngZoom(selectedPosition.value, 15f)
+                        }
+                )
+            }
+        }
 
         // Google Map
         Box(modifier = Modifier.weight(1f)) {
@@ -79,9 +103,9 @@ fun MapScreen(modifier: Modifier = Modifier) {
                 cameraPositionState = cameraPositionState
             ) {
                 Marker(
-                    state = MarkerState(position = startPosition),
-                    title = "Starting Point",
-                    snippet = "Marker in Atlanta"
+                    state = MarkerState(position = selectedPosition.value),
+                    title = "Selected Location",
+                    snippet = "Marker at selected location"
                 )
             }
         }
