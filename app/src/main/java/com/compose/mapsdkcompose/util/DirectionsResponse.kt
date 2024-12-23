@@ -1,4 +1,4 @@
-package com.compose.mapsdkcompose
+package com.compose.mapsdkcompose.util
 
 import com.google.gson.annotations.SerializedName
 
