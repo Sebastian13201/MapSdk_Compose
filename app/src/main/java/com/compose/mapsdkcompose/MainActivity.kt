@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,10 +21,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.compose.mapsdkcompose.api.RetrofitClient
 import com.compose.mapsdkcompose.ui.theme.MapSdkComposeTheme
 import com.google.android.gms.maps.model.CameraPosition
@@ -35,17 +42,19 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (!Places.isInitialized()) {
-            Places.initialize(applicationContext, "GOOGLE_MAPS_API_KEY")
+            Places.initialize(this, "AIzaSyDzIo3sMmKaWWB20Usxmpl00oyL73ssCt0")
         }
 
         enableEdgeToEdge()
         setContent {
             MapSdkComposeTheme {
+                AppNavigation()
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MapScreen(modifier = Modifier.padding(innerPadding))
                 }
@@ -53,6 +62,39 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+
+@Composable
+fun AppNavigation() {
+    val navController = rememberNavController()
+    NavHost(navController = navController, startDestination = "splash") {
+        composable("splash") { SplashScreen(navController) }
+        composable("home") { MapScreen() }
+    }
+}
+
+@Composable
+fun SplashScreen(navController: NavHostController) {
+    // Delay for 3 seconds before navigating to the home screen
+    LaunchedEffect(Unit) {
+        delay(3000)
+        navController.navigate("home") {
+            popUpTo("splash") { inclusive = true }
+        }
+    }
+
+    // Display the splash screen with the image
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.maximum_logo),
+            contentDescription = "Splash Logo"
+        )
+    }
+}
+
 
 @Composable
 fun MapScreen(modifier: Modifier = Modifier) {
@@ -75,7 +117,7 @@ fun MapScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(selectedPosition.value) {
         // Fetch directions from origin to selected position
         route.value = fetchRoute(
-            "YOUR_GOOGLE_MAPS_API_KEY", // Use your API Key
+            "AIzaSyDzIo3sMmKaWWB20Usxmpl00oyL73ssCt0", // Use your API Key
             selectedPosition.value,
             LatLng(33.7488, -84.3880) // Set your destination here
         )
@@ -154,7 +196,7 @@ fun SearchPlaces(
                 val suggestions = response.autocompletePredictions.map { prediction ->
                     Pair(
                         prediction.getPrimaryText(null).toString(),
-                        LatLng(0.0, 0.0) // Replace with the actual location if available
+                        LatLng(33.7772544, -84.5545472) // Replace with the actual location if available
                     )
                 }
                 onSuggestionsFetched(suggestions)
