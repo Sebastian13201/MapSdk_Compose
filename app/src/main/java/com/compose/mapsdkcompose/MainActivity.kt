@@ -8,16 +8,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -38,7 +35,6 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.libraries.places.api.Places
-import com.google.android.libraries.places.api.net.FindAutocompletePredictionsRequest
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
@@ -74,7 +70,7 @@ class MainActivity : ComponentActivity() {
         }
 
         val route = remember { mutableStateOf<List<LatLng>>(emptyList()) }
-        val originPosition = remember { mutableStateOf(LatLng(33.7488, -84.3880)) }
+        val originPosition = remember { mutableStateOf(LatLng(33.7772544, -84.5529472)) }
 
         LaunchedEffect(selectedPosition.value) {
             if (selectedPosition.value != originPosition.value) {
@@ -86,13 +82,21 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Fetch suggestions when search query changes
+        LaunchedEffect(searchQuery.value) {
+            if (searchQuery.value.isNotBlank()) {
+                suggestions.value = getMarkerSuggestions(searchQuery.value)
+            } else {
+                suggestions.value = emptyList()
+            }
+        }
+
         Scaffold(
             modifier = modifier
         ) { padding ->
             Column(
                 modifier = Modifier
                     .padding(padding)
-                    .padding(16.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -152,7 +156,7 @@ class MainActivity : ComponentActivity() {
                                 LatLng(33.7772544, -84.5529472),
                                 "Marker 4",
                                 R.drawable.maximum_logo
-                            )
+                            ),
                         )
 
                         markers.forEach { markerInfo ->
@@ -178,33 +182,18 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    @Composable
-    private fun SearchPlaces(
-        searchQuery: String,
-        onSuggestionsFetched: (List<Pair<String, LatLng>>) -> Unit
-    ) {
-        val context = LocalContext.current
-        val placesClient = remember { Places.createClient(context) }
+    private fun getMarkerSuggestions(query: String): List<Pair<String, LatLng>> {
+        val markers = listOf(
+            MarkerInfo(LatLng(33.7782544, -84.5555472), "Marker 1", R.drawable.anya),
+            MarkerInfo(LatLng(33.7792544, -84.5561472), "Marker 2", R.drawable.luffy),
+            MarkerInfo(LatLng(33.7762544, -84.5532472), "Marker 3", R.drawable.clipart5643),
+            MarkerInfo(LatLng(33.7772544, -84.5529472), "Marker 4", R.drawable.maximum_logo)
+        )
 
-        if (searchQuery.isNotBlank()) {
-            val request = FindAutocompletePredictionsRequest.builder()
-                .setQuery(searchQuery)
-                .build()
-
-            placesClient.findAutocompletePredictions(request)
-                .addOnSuccessListener { response ->
-                    val suggestions = response.autocompletePredictions.map { prediction ->
-                        Pair(
-                            prediction.getPrimaryText(null).toString(),
-                            LatLng(33.7772544, -84.5545472)
-                        )
-                    }
-                    onSuggestionsFetched(suggestions)
-                }
-                .addOnFailureListener { exception ->
-                    Log.e("Places", "Error finding places", exception)
-                    onSuggestionsFetched(emptyList())
-                }
+        return markers.filter { markerInfo ->
+            markerInfo.title.contains(query, ignoreCase = true)
+        }.map { markerInfo ->
+            Pair(markerInfo.title, markerInfo.position)
         }
     }
 
