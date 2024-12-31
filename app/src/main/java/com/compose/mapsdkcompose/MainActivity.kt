@@ -70,7 +70,7 @@ class MainActivity : ComponentActivity() {
         }
 
         val route = remember { mutableStateOf<List<LatLng>>(emptyList()) }
-        val originPosition = remember { mutableStateOf(LatLng(33.7772544, -84.5529472)) }
+        val originPosition = remember { mutableStateOf(LatLng(33.7782544, -84.5555472)) } // Marker 1
 
         LaunchedEffect(selectedPosition.value) {
             if (selectedPosition.value != originPosition.value) {
