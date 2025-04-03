@@ -46,7 +46,7 @@ A modern Android app built with **MVVM architecture**, showcasing Google Maps in
   - Google Directions API
 - **Image Loading**: Coil
 - **Asynchronous**: Kotlin Coroutines + Flow
-- **Database**: Room (if applicable)
+- **Database**: RoomDB
 
 ---
 
