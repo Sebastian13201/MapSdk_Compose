@@ -51,3 +51,4 @@ A modern Android app built with **MVVM architecture**, showcasing Google Maps in
 1. **Clone the repository**:
    ```bash
    git clone https://github.com/yourusername/custom-map-app.git
+2.**Get your Api keyfrom Google Cloud Console**
