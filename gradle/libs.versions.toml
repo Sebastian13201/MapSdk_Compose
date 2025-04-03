@@ -13,9 +13,9 @@ composeBom = "2024.12.01"
 mapsCompose = "2.11.0"
 places = "4.1.0"
 playServicesMaps = "19.0.0"
-mapsSecret = "2.0.1"
 retrofit = "2.11.0"
 navigationCompose = "2.8.5"
+secretsGradlePlugin = "2.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -39,10 +39,10 @@ places = { module = "com.google.android.libraries.places:places", version.ref = 
 play-services-maps = { module = "com.google.android.gms:play-services-maps", version.ref = "playServicesMaps" }
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+secrets-gradle-plugin = { module = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin:secrets-gradle-plugin", version.ref = "secretsGradlePlugin" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-map-secret = { id = "com.google.android.libraries.mapsplatform.secrets-gradle-plugin", version.ref = "mapsSecret" }
 

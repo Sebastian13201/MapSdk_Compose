@@ -4,9 +4,11 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -22,9 +25,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.compose.mapsdkcompose.api.RetrofitClient
@@ -58,6 +63,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Preview
     @Composable
     fun MapScreen(modifier: Modifier = Modifier) {
         val context = LocalContext.current
@@ -66,11 +72,11 @@ class MainActivity : ComponentActivity() {
         val suggestions = remember { mutableStateOf<List<Pair<String, LatLng>>>(emptyList()) }
         val selectedPosition = remember { mutableStateOf(LatLng(33.7772544, -84.5545472)) }
         val cameraPositionState = rememberCameraPositionState {
-            position = CameraPosition.fromLatLngZoom(selectedPosition.value, 15f)
+            position = CameraPosition.fromLatLngZoom(selectedPosition.value, 13f)
         }
 
         val route = remember { mutableStateOf<List<LatLng>>(emptyList()) }
-        val originPosition = remember { mutableStateOf(LatLng(33.7782544, -84.5555472)) } // Marker 1
+        val originPosition = remember { mutableStateOf(LatLng(33.7782544, -84.5555472)) }
 
         LaunchedEffect(selectedPosition.value) {
             if (selectedPosition.value != originPosition.value) {
@@ -82,7 +88,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // Fetch suggestions when search query changes
         LaunchedEffect(searchQuery.value) {
             if (searchQuery.value.isNotBlank()) {
                 suggestions.value = getMarkerSuggestions(searchQuery.value)
@@ -91,27 +96,86 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        Scaffold(
-            modifier = modifier
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-            ) {
+        Scaffold(modifier = modifier) { padding ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                // Background Map
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraPositionState = cameraPositionState
+                ) {
+                    // Markers and Polylines logic
+                    val markers = listOf(
+                        MarkerInfo(
+                            LatLng(33.7782544, -84.5555472),
+                            "Current Location",
+                            R.drawable.anya
+                        ),
+                        MarkerInfo(
+                            LatLng(33.7882544, -84.5655472),
+                            "Luffy",
+                            R.drawable.luffy
+                        ),
+                        MarkerInfo(
+                            LatLng(33.7682544, -84.5455472),
+                            "Imotto",
+                            R.drawable.clipart5643
+                        ),
+                        MarkerInfo(
+                            LatLng(33.7582544, -84.5755472),
+                            "Kawaii- Onesaan",
+                            R.drawable.maximum_logo
+                        ),
+                    )
+
+                    markers.forEach { markerInfo ->
+                        Marker(
+                            state = MarkerState(position = markerInfo.position),
+                            title = markerInfo.title,
+                            icon = bitmapDescriptorFromVector(context, markerInfo.iconResId),
+                            onClick = {
+                                Toast.makeText(
+                                    context,
+                                    "${markerInfo.title} clicked!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                true
+                            }
+                        )
+                    }
+
+                    if (route.value.isNotEmpty()) {
+                        Polyline(
+                            points = route.value,
+                            color = Color.Blue,
+                            width = 5f
+                        )
+                    }
+                }
+
+                // Floating Search Bar
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(8.dp)
+                        .padding(16.dp)
+                        .align(Alignment.TopCenter)
                 ) {
                     OutlinedTextField(
                         value = searchQuery.value,
                         onValueChange = { query -> searchQuery.value = query },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 20.dp)
+                            .background(Color.White), // Set alpha value here (0.0f = fully transparent, 1.0f = fully opaque)
                         label = { Text("Search") },
-                        singleLine = true
+                        singleLine = true,
+                        shape = RoundedCornerShape(30.dp)
                     )
 
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                    ) {
                         items(suggestions.value) { suggestion ->
                             Text(
                                 text = suggestion.first,
@@ -119,62 +183,15 @@ class MainActivity : ComponentActivity() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(8.dp)
+                                    .background(Color.White)
                                     .clickable {
                                         selectedPosition.value = suggestion.second
-                                        cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                            selectedPosition.value,
-                                            15f
-                                        )
+                                        cameraPositionState.position =
+                                            CameraPosition.fromLatLngZoom(
+                                                selectedPosition.value,
+                                                15f
+                                            )
                                     }
-                            )
-                        }
-                    }
-                }
-
-                Box(modifier = Modifier.weight(1f)) {
-                    GoogleMap(
-                        modifier = Modifier.fillMaxSize(),
-                        cameraPositionState = cameraPositionState
-                    ) {
-                        val markers = listOf(
-                            MarkerInfo(
-                                LatLng(33.7782544, -84.5555472),
-                                "Marker 1",
-                                R.drawable.anya
-                            ),
-                            MarkerInfo(
-                                LatLng(33.7792544, -84.5561472),
-                                "Marker 2",
-                                R.drawable.luffy
-                            ),
-                            MarkerInfo(
-                                LatLng(33.7762544, -84.5532472),
-                                "Marker 3",
-                                R.drawable.clipart5643
-                            ),
-                            MarkerInfo(
-                                LatLng(33.7772544, -84.5529472),
-                                "Marker 4",
-                                R.drawable.maximum_logo
-                            ),
-                        )
-
-                        markers.forEach { markerInfo ->
-                            Marker(
-                                state = MarkerState(position = markerInfo.position),
-                                title = markerInfo.title,
-                                icon = bitmapDescriptorFromVector(
-                                    context,
-                                    markerInfo.iconResId
-                                )
-                            )
-                        }
-
-                        if (route.value.isNotEmpty()) {
-                            Polyline(
-                                points = route.value,
-                                color = Color.Blue,
-                                width = 5f
                             )
                         }
                     }
@@ -182,12 +199,12 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
     private fun getMarkerSuggestions(query: String): List<Pair<String, LatLng>> {
         val markers = listOf(
-            MarkerInfo(LatLng(33.7782544, -84.5555472), "Marker 1", R.drawable.anya),
-            MarkerInfo(LatLng(33.7792544, -84.5561472), "Marker 2", R.drawable.luffy),
-            MarkerInfo(LatLng(33.7762544, -84.5532472), "Marker 3", R.drawable.clipart5643),
-            MarkerInfo(LatLng(33.7772544, -84.5529472), "Marker 4", R.drawable.maximum_logo)
+            MarkerInfo(LatLng(33.7882544, -84.5655472), "Marker 2", R.drawable.luffy),
+            MarkerInfo(LatLng(33.7682544, -84.5455472), "Marker 3", R.drawable.clipart5643),
+            MarkerInfo(LatLng(33.7582544, -84.5755472), "Marker 4", R.drawable.maximum_logo)
         )
 
         return markers.filter { markerInfo ->
@@ -200,8 +217,8 @@ class MainActivity : ComponentActivity() {
     private fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
         val vectorDrawable = ContextCompat.getDrawable(context, vectorResId) ?: return null
 
-        val width = 80
-        val height = 80
+        val width = 140
+        val height = 140
 
         vectorDrawable.setBounds(0, 0, width, height)
         val bitmap = Bitmap.createBitmap(
@@ -248,7 +265,11 @@ class MainActivity : ComponentActivity() {
         return poly
     }
 
-    private suspend fun fetchRoute(apiKey: String, origin: LatLng, destination: LatLng): List<LatLng> {
+    private suspend fun fetchRoute(
+        apiKey: String,
+        origin: LatLng,
+        destination: LatLng
+    ): List<LatLng> {
         return try {
             val response = RetrofitClient.service.getDirections(
                 "${origin.latitude},${origin.longitude}",
